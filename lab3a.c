@@ -11,39 +11,12 @@
 #include <time.h>
 #include "ext2_fs.h"
 
-int group_count = (super.s_blocks_count-1) / super.s_blocks_per_group + 1;
-
-
 void err_msg_and_exit_1(char* format, ...) {
     va_list argp;
     va_start(argp, format);
     vfprintf(stderr, format, argp);
     fprintf(stderr, ": %s\n", strerror(errno));
     exit(1);
-}
-
-void group_info()
-{
-    
-    struct ext2_super_block groups[group_count];
-    ssize_t g_read = pread(img_fd, &groups, sizeof(struct ext2_group_desc)*group_count, 1024 + (1024 << super_block.s_log_block_size));
-    if(g_read == 0)
-    {
-        fprintf(stderr, "pread error\n");
-    }
-    int i = 0;
-    for(; i < group_count; i++)
-    {
-        int blks_per_group = super_block.s_blocks_per_group;
-        int i-nodes_per_group = super_block.s_inodes_per_group;
-        
-        if(i == group_count - 1);
-        {
-            blks_per_group = super_block.s_blocks_count % super_block.s_blocks_per_group;
-            i-nodes_per_group = super_block.s_inodes_count % super_block.s_inodes_per_group;
-        }
-        dprintf(1, "GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", i, blks_per_group, i-nodes_per_group, groups[i].bg_free_blocks_count, groups[i].bg_free_inodes_count,groupBuffer[i].bg_block_bitmap,groupBuffer[i].bg_inode_bitmap,groupBuffer[i].bg_inode_table);
-    }
 }
 
 int main(int argc, char** argv) {
@@ -70,29 +43,44 @@ int main(int argc, char** argv) {
            super_block.s_inodes_per_group,
            super_block.s_first_ino
     );
-    group_info(); //group summaries
     
-    unsigned int i = 0; // TODO group num
-    
-    struct ext2_group_desc group_desc;
-    unsigned int num_blocks = group_desc.s_blocks_per_group; // TODO different for last group
-    unsigned int num_inodes = group_desc.s_inodes_per_group; // TODO different for last group
-    
-    unsigned int block_bitmap_bytes = (num_blocks-1)/8 + 1;
-    unsigned char block_bitmap[block_bitmap_bytes];
-    pread(img_fd, block_bitmap, block_bitmap_bytes, group_desc.bg_block_bitmap * block_size);
-    for (unsigned int j = 0; j < num_blocks; j++) {
-        if (block_bitmap[j/8] & (1<<(j%8)) == 0) {
-            printf("BFREE,%d\n", i*super_block.s_blocks_per_group + j);
-        }
+    int group_count = (super_block.s_blocks_count-1) / super_block.s_blocks_per_group + 1;
+    struct ext2_group_desc groups[group_count];
+    ssize_t g_read = pread(img_fd, groups, sizeof(struct ext2_group_desc)*group_count, 1024 + block_size);
+    if(g_read == 0)
+    {
+        fprintf(stderr, "pread error\n");
     }
-    
-    unsigned int inode_bitmap_bytes = (num_inodes-1)/8 + 1;
-    unsigned char inode_bitmap[inode_bitmap_bytes];
-    pread(img_fd, inode_bitmap, inode_bitmap_bytes, group_desc.bg_inode_bitmap * block_size)
-    for (unsigned int j = 0; j < num_inodes; j++) {
-        if (block_bitmap[j/8] & (1<<(j%8)) == 0) {
-            printf("BFREE,%d\n", i*super_block.s_inodes_per_group + j);
+    int i = 0;
+    for(; i < group_count; i++)
+    {
+        int num_blocks = super_block.s_blocks_per_group;
+        int num_inodes = super_block.s_inodes_per_group;
+        
+        if(i == group_count - 1)
+        {
+            num_blocks = super_block.s_blocks_count % super_block.s_blocks_per_group;
+            num_inodes = super_block.s_inodes_count % super_block.s_inodes_per_group;
+        }
+        dprintf(1, "GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", i, num_blocks, num_inodes, groups[i].bg_free_blocks_count, groups[i].bg_free_inodes_count,groups[i].bg_block_bitmap,groups[i].bg_inode_bitmap,groups[i].bg_inode_table);
+        
+        // free block/inode summaries:
+        unsigned int block_bitmap_bytes = (num_blocks-1)/8 + 1;
+        unsigned char block_bitmap[block_bitmap_bytes];
+        pread(img_fd, block_bitmap, block_bitmap_bytes, groups[i].bg_block_bitmap * block_size);
+        for (unsigned int j = 0; j < num_blocks; j++) {
+            if ((block_bitmap[j/8] & (1<<(j%8))) == 0) {
+                printf("BFREE,%d\n", i*super_block.s_blocks_per_group + j);
+            }
+        }
+        
+        unsigned int inode_bitmap_bytes = (num_inodes-1)/8 + 1;
+        unsigned char inode_bitmap[inode_bitmap_bytes];
+        pread(img_fd, inode_bitmap, inode_bitmap_bytes, groups[i].bg_inode_bitmap * block_size);
+        for (unsigned int j = 0; j < num_inodes; j++) {
+            if ((block_bitmap[j/8] & (1<<(j%8))) == 0) {
+                printf("BFREE,%d\n", i*super_block.s_inodes_per_group + j);
+            }
         }
     }
     
