@@ -44,24 +44,33 @@ int main(int argc, char** argv) {
            super_block.s_first_ino
     );
     
-    int group_count = (super_block.s_blocks_count-1) / super_block.s_blocks_per_group + 1;
+    int groups_with_full_blocks = super_block.s_blocks_count / super_block.s_blocks_per_group;
+    int groups_with_full_inodes = super_block.s_inodes_count / super_block.s_inodes_per_group;
+    int group_count = (groups_with_full_blocks > groups_with_full_inodes ? groups_with_full_blocks : groups_with_full_inodes) + 1;
     struct ext2_group_desc groups[group_count];
     ssize_t g_read = pread(img_fd, groups, sizeof(struct ext2_group_desc)*group_count, 1024 + block_size);
     if(g_read == 0)
     {
         fprintf(stderr, "pread error\n");
     }
+    
+    int num_blocks = super_block.s_blocks_per_group;
+    int num_inodes = super_block.s_inodes_per_group;
     int i = 0;
     for(; i < group_count; i++)
     {
-        int num_blocks = super_block.s_blocks_per_group;
-        int num_inodes = super_block.s_inodes_per_group;
-        
-        if(i == group_count - 1)
-        {
+        if (i == groups_with_full_blocks) {
             num_blocks = super_block.s_blocks_count % super_block.s_blocks_per_group;
-            num_inodes = super_block.s_inodes_count % super_block.s_inodes_per_group;
+        } else if (i > groups_with_full_blocks) {
+            num_blocks = 0;
         }
+        
+        if (i == groups_with_full_inodes) {
+            num_inodes = super_block.s_inodes_count % super_block.s_inodes_per_group;
+        } else if (i > groups_with_full_inodes) {
+            num_inodes = 0;
+        }
+        
         dprintf(1, "GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", i, num_blocks, num_inodes, groups[i].bg_free_blocks_count, groups[i].bg_free_inodes_count,groups[i].bg_block_bitmap,groups[i].bg_inode_bitmap,groups[i].bg_inode_table);
         
         // free block/inode summaries:
