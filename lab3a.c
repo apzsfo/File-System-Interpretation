@@ -46,7 +46,11 @@ int main(int argc, char** argv) {
     
     int groups_with_full_blocks = super_block.s_blocks_count / super_block.s_blocks_per_group;
     int groups_with_full_inodes = super_block.s_inodes_count / super_block.s_inodes_per_group;
-    int group_count = (groups_with_full_blocks > groups_with_full_inodes ? groups_with_full_blocks : groups_with_full_inodes) + 1;
+    int leftover_blocks = super_block.s_blocks_count % super_block.s_blocks_per_group;
+    int leftover_inodes = super_block.s_inodes_count % super_block.s_inodes_per_group;
+    int groups_needed_for_blocks = groups_with_full_blocks + !!(leftover_blocks);
+    int groups_needed_for_inodes = groups_with_full_inodes + !!(leftover_inodes);
+    int group_count = (groups_needed_for_blocks > groups_needed_for_inodes ? groups_needed_for_blocks : groups_needed_for_inodes);
     struct ext2_group_desc groups[group_count];
     ssize_t g_read = pread(img_fd, groups, sizeof(struct ext2_group_desc)*group_count, 1024 + block_size);
     if(g_read == 0)
@@ -60,13 +64,13 @@ int main(int argc, char** argv) {
     for(; i < group_count; i++)
     {
         if (i == groups_with_full_blocks) {
-            num_blocks = super_block.s_blocks_count % super_block.s_blocks_per_group;
+            num_blocks = leftover_blocks;
         } else if (i > groups_with_full_blocks) {
             num_blocks = 0;
         }
         
         if (i == groups_with_full_inodes) {
-            num_inodes = super_block.s_inodes_count % super_block.s_inodes_per_group;
+            num_inodes = leftover_inodes;
         } else if (i > groups_with_full_inodes) {
             num_inodes = 0;
         }
@@ -88,7 +92,7 @@ int main(int argc, char** argv) {
         pread(img_fd, inode_bitmap, inode_bitmap_bytes, groups[i].bg_inode_bitmap * block_size);
         for (unsigned int j = 0; j < num_inodes; j++) {
             if ((block_bitmap[j/8] & (1<<(j%8))) == 0) {
-                printf("BFREE,%d\n", i*super_block.s_inodes_per_group + j);
+                printf("IFREE,%d\n", i*super_block.s_inodes_per_group + j);
             }
         }
     }
