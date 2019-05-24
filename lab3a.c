@@ -15,7 +15,7 @@ void err_msg_and_exit_1(char* format, ...) {
     va_list argp;
     va_start(argp, format);
     vfprintf(stderr, format, argp);
-    fprintf(stderr, ": %s\r\n", strerror(errno));
+    fprintf(stderr, ": %s\n", strerror(errno));
     exit(1);
 }
 
@@ -32,16 +32,41 @@ int main(int argc, char** argv) {
     
     struct ext2_super_block super_block;
     pread(img_fd, &super_block, sizeof(struct ext2_super_block), 1024);
+    unsigned int block_size = 1024 << super_block.s_log_block_size;
     printf(
            "SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n",
            super_block.s_blocks_count,
            super_block.s_inodes_count,
-           1024 << super_block.s_log_block_size,
+           block_size,
            super_block.s_inode_size,
            super_block.s_blocks_per_group,
            super_block.s_inodes_per_group,
            super_block.s_first_ino
     );
+    
+    unsigned int i = 0; // TODO group num
+    
+    struct ext2_group_desc group_desc;
+    unsigned int num_blocks = group_desc.s_blocks_per_group; // TODO different for last group
+    unsigned int num_inodes = group_desc.s_inodes_per_group; // TODO different for last group
+    
+    unsigned int block_bitmap_bytes = (num_blocks-1)/8 + 1;
+    unsigned char block_bitmap[block_bitmap_bytes];
+    pread(img_fd, block_bitmap, block_bitmap_bytes, group_desc.bg_block_bitmap * block_size);
+    for (unsigned int j = 0; j < num_blocks; j++) {
+        if (block_bitmap[j/8] & (1<<(j%8)) == 0) {
+            printf("BFREE,%d\n", i*super_block.s_blocks_per_group + j);
+        }
+    }
+    
+    unsigned int inode_bitmap_bytes = (num_inodes-1)/8 + 1;
+    unsigned char inode_bitmap[inode_bitmap_bytes];
+    pread(img_fd, inode_bitmap, inode_bitmap_bytes, group_desc.bg_inode_bitmap * block_size)
+    for (unsigned int j = 0; j < num_inodes; j++) {
+        if (block_bitmap[j/8] & (1<<(j%8)) == 0) {
+            printf("BFREE,%d\n", i*super_block.s_inodes_per_group + j);
+        }
+    }
     
     return 0;
 }
