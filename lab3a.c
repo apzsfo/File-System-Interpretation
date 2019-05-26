@@ -131,15 +131,15 @@ int main(int argc, char** argv) {
                 }
                 char last_change[50];
                 char mod[50];
-                char access[50];
+                char acc[50];
                 time_t l = inodes[j].i_ctime;
                 time_t m = inodes[j].i_mtime;
                 time_t a = inodes[j].i_atime;
                 strftime(last_change, 50, "%d %t", gmtime(&l));
                 strftime(mod, 50, "%d %t", gmtime(&m));
-                strftime(access, 50, "%d %t", gmtime(&a));
+                strftime(acc, 50, "%d %t", gmtime(&a));
                 
-                dprintf(1, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", inode_number, file_type, inodes[j].i_mode & 0x0FFF, inodes[j].i_uid, inodes[j].i_gid, inodes[j].i_links_count, last_change, mod, access, inodes[j].i_size, inodes[j].i_blocks);
+                dprintf(1, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", inode_number, file_type, inodes[j].i_mode & 0x0FFF, inodes[j].i_uid, inodes[j].i_gid, inodes[j].i_links_count, last_change, mod, acc, inodes[j].i_size, inodes[j].i_blocks);
             }
         }
     }
