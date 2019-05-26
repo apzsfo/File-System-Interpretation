@@ -34,18 +34,17 @@ void scan_ind_block(unsigned int inode_num, int level, unsigned int offset, unsi
     level--;
     offset_inc /= pointers_per_block;
     for (unsigned int i = 0; i < pointers_per_block; i++) {
-        if (block_ptrs[i] == 0) {
-            continue;
+        if (block_ptrs[i] != 0) {
+            printf(
+                   "INDIRECT,%d,%d,%d,%d,%d\n",
+                   inode_num,
+                   level+1,
+                   offset,
+                   block_num,
+                   block_ptrs[i]
+            );
+            scan_ind_block(inode_num, level, offset, block_ptrs[i], offset_inc);
         }
-        printf(
-               "INDIRECT,%d,%d,%d,%d,%d\n",
-               inode_num,
-               level+1,
-               offset,
-               block_num,
-               block_ptrs[i]
-        );
-        scan_ind_block(inode_num, level, offset, block_ptrs[i], offset_inc);
         offset += offset_inc;
     }
 }
@@ -127,7 +126,7 @@ int main(int argc, char** argv) {
         unsigned char inode_bitmap[inode_bitmap_bytes];
         pread(img_fd, inode_bitmap, inode_bitmap_bytes, groups[i].bg_inode_bitmap * block_size);
         for (unsigned int j = 0; j < num_inodes; j++) {
-            if ((block_bitmap[j/8] & (1<<(j%8))) == 0) {
+            if ((inode_bitmap[j/8] & (1<<(j%8))) == 0) {
                 printf("IFREE,%d\n", i*super_block.s_inodes_per_group + j + 1);
             }
         }
@@ -215,7 +214,7 @@ int main(int argc, char** argv) {
                     offset += offset_inc;
                     offset_inc *= pointers_per_block;
                     if (inodes[j].i_block[14] != 0)
-                        scan_ind_block(inode_number, 2, offset, inodes[j].i_block[14], offset_inc);
+                        scan_ind_block(inode_number, 3, offset, inodes[j].i_block[14], offset_inc);
                 }
             }
         }
