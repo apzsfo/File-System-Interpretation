@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
         pread(img_fd, block_bitmap, block_bitmap_bytes, groups[i].bg_block_bitmap * block_size);
         for (unsigned int j = 0; j < num_blocks; j++) {
             if ((block_bitmap[j/8] & (1<<(j%8))) == 0) {
-                printf("BFREE,%d\n", i*super_block.s_blocks_per_group + j);
+                printf("BFREE,%d\n", i*super_block.s_blocks_per_group + j + 1);
             }
         }
         
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
         pread(img_fd, inode_bitmap, inode_bitmap_bytes, groups[i].bg_inode_bitmap * block_size);
         for (unsigned int j = 0; j < num_inodes; j++) {
             if ((block_bitmap[j/8] & (1<<(j%8))) == 0) {
-                printf("IFREE,%d\n", i*super_block.s_inodes_per_group + j);
+                printf("IFREE,%d\n", i*super_block.s_inodes_per_group + j + 1);
             }
         }
         
@@ -190,13 +190,13 @@ int main(int argc, char** argv) {
                             dir_name[dir_entry.name_len] = '\0';
                             printf(
                                    "DIRENT,%d,%d,%d,%d,%d,'%s'\n",
-                                   j,
+                                   inode_number,
                                    dirent_byte_offset,
                                    dir_entry.inode,
                                    dir_entry.rec_len,
                                    dir_entry.name_len,
                                    dir_name
-                                   );
+                            );
                         }
                     }
                 }
@@ -205,17 +205,17 @@ int main(int argc, char** argv) {
                     unsigned int offset = 12;
                     unsigned int offset_inc = pointers_per_block;
                     if (inodes[j].i_block[12] != 0)
-                        scan_ind_block(j, 1, offset, inodes[j].i_block[12], offset_inc);
+                        scan_ind_block(inode_number, 1, offset, inodes[j].i_block[12], offset_inc);
                     
                     offset += offset_inc;
                     offset_inc *= pointers_per_block;
                     if (inodes[j].i_block[13] != 0)
-                        scan_ind_block(j, 2, offset, inodes[j].i_block[13], offset_inc);
+                        scan_ind_block(inode_number, 2, offset, inodes[j].i_block[13], offset_inc);
                     
                     offset += offset_inc;
                     offset_inc *= pointers_per_block;
                     if (inodes[j].i_block[14] != 0)
-                        scan_ind_block(j, 2, offset, inodes[j].i_block[14], offset_inc);
+                        scan_ind_block(inode_number, 2, offset, inodes[j].i_block[14], offset_inc);
                 }
             }
         }
