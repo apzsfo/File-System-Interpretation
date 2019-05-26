@@ -94,8 +94,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "pread error\n");
     }
     
-    int num_blocks = super_block.s_blocks_per_group;
-    int num_inodes = super_block.s_inodes_per_group;
+    unsigned int num_blocks = super_block.s_blocks_per_group;
+    unsigned int num_inodes = super_block.s_inodes_per_group;
     int i = 0;
     for(; i < group_count; i++)
     {
@@ -199,7 +199,6 @@ int main(int argc, char** argv) {
                                    );
                         }
                     }
-                    struct ext2_dir_entry entry;
                 }
                 
                 if (file_type == 'f' || file_type == 'd') {
