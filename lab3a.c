@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
             fprintf(stderr, "inode read error\n");
             exit(1);
         }
-        int j = 0;
+        unsigned int j = 0;
         for(; j < num_inodes; j++)
         {
             int inode_number = j+1;
