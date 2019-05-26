@@ -75,6 +75,9 @@ int main(int argc, char** argv) {
            super_block.s_first_ino
     );
     
+    int inodes_per_group = super_block.s_inodes_per_group;
+    int inode_size = super_block.s_inode_size;
+    int inode_buffer_size = inodes_per_group * inode_size;
     pointers_per_block = block_size / sizeof(unsigned int);
     
     int groups_with_full_blocks = super_block.s_blocks_count / super_block.s_blocks_per_group;
@@ -129,68 +132,8 @@ int main(int argc, char** argv) {
             }
         }
         
-        { // TODO loop
-            unsigned int j = 0; // TODO inode num
-            struct ext2_inode inode;
-            char file_type = 'd'; //TODO
-            
-            if (file_type == 'd') {
-                for (unsigned int k = 0; k < 12; k++) {
-                    if (inode.i_block[k] == 0) {
-                        continue;
-                    }
-                    unsigned int dirent_loc = inode.i_block[k] * block_size;
-                    struct ext2_dir_entry dir_entry;
-                    for (__uint32_t dirent_byte_offset = 0; dirent_byte_offset < block_size; dirent_byte_offset += dir_entry.rec_len) {
-                        pread(img_fd, &dir_entry, sizeof(struct ext2_dir_entry), dirent_loc + dirent_byte_offset);
-                        if (dir_entry.inode == 0) {
-                            continue;
-                        }
-                        char dir_name[dir_entry.name_len+1];
-                        for (int l = 0; l < dir_entry.name_len; l++) {
-                            dir_name[l] = dir_entry.name[l];
-                        }
-                        dir_name[dir_entry.name_len] = '\0';
-                        printf(
-                               "DIRENT,%d,%d,%d,%d,%d,'%s'\n",
-                               j,
-                               dirent_byte_offset,
-                               dir_entry.inode,
-                               dir_entry.rec_len,
-                               dir_entry.name_len,
-                               dir_name
-                        );
-                    }
-                }
-                struct ext2_dir_entry entry;
-            }
-            
-            if (file_type == 'f' || file_type == 'd') {
-                unsigned int offset = 12;
-                unsigned int offset_inc = pointers_per_block;
-                if (inode.i_block[12] != 0)
-                    scan_ind_block(j, 1, offset, inode.i_block[12], offset_inc);
-                
-                offset += offset_inc;
-                offset_inc *= pointers_per_block;
-                if (inode.i_block[13] != 0)
-                    scan_ind_block(j, 2, offset, inode.i_block[13], offset_inc);
-                
-                offset += offset_inc;
-                offset_inc *= pointers_per_block;
-                if (inode.i_block[14] != 0)
-                    scan_ind_block(j, 2, offset, inode.i_block[14], offset_inc);
-            }
-        }
-    }
-    //i-node summary
-    int inodes_per_group = superBuffer.s_inodes_per_group;
-    int inode_size = superBuffer.s_inode_size;
-    int inode_buffer_size = inodes_per_group * inode_size;
-    struct ext2_inode inodes[inodes_per_group];
-    int i = 0;
-    for(; i < group_count; i++)
-    {
+        //i-node summary
+        struct ext2_inode inodes[inodes_per_group];
         ssize_t i_read = pread(img_fd, inodes, inode_buffer_size, groups[i].bg_inode_table*block_size);
         if(i_read < 0)
         {
@@ -198,7 +141,7 @@ int main(int argc, char** argv) {
             exit(1);
         }
         int j = 0;
-        for(; j < inode_size; i++)
+        for(; j < num_inodes; i++)
         {
             int inode_number = j+1;
             char file_type = '?';
@@ -227,6 +170,54 @@ int main(int argc, char** argv) {
                 strftime(acc, 50, "%d %t", gmtime(&a));
                 
                 dprintf(1, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", inode_number, file_type, inodes[j].i_mode & 0x0FFF, inodes[j].i_uid, inodes[j].i_gid, inodes[j].i_links_count, last_change, mod, acc, inodes[j].i_size, inodes[j].i_blocks);
+            
+                if (file_type == 'd') {
+                    for (unsigned int k = 0; k < 12; k++) {
+                        if (inodes[j].i_block[k] == 0) {
+                            continue;
+                        }
+                        unsigned int dirent_loc = inodes[j].i_block[k] * block_size;
+                        struct ext2_dir_entry dir_entry;
+                        for (__uint32_t dirent_byte_offset = 0; dirent_byte_offset < block_size; dirent_byte_offset += dir_entry.rec_len) {
+                            pread(img_fd, &dir_entry, sizeof(struct ext2_dir_entry), dirent_loc + dirent_byte_offset);
+                            if (dir_entry.inode == 0) {
+                                continue;
+                            }
+                            char dir_name[dir_entry.name_len+1];
+                            for (int l = 0; l < dir_entry.name_len; l++) {
+                                dir_name[l] = dir_entry.name[l];
+                            }
+                            dir_name[dir_entry.name_len] = '\0';
+                            printf(
+                                   "DIRENT,%d,%d,%d,%d,%d,'%s'\n",
+                                   j,
+                                   dirent_byte_offset,
+                                   dir_entry.inode,
+                                   dir_entry.rec_len,
+                                   dir_entry.name_len,
+                                   dir_name
+                                   );
+                        }
+                    }
+                    struct ext2_dir_entry entry;
+                }
+                
+                if (file_type == 'f' || file_type == 'd') {
+                    unsigned int offset = 12;
+                    unsigned int offset_inc = pointers_per_block;
+                    if (inodes[j].i_block[12] != 0)
+                        scan_ind_block(j, 1, offset, inodes[j].i_block[12], offset_inc);
+                    
+                    offset += offset_inc;
+                    offset_inc *= pointers_per_block;
+                    if (inodes[j].i_block[13] != 0)
+                        scan_ind_block(j, 2, offset, inodes[j].i_block[13], offset_inc);
+                    
+                    offset += offset_inc;
+                    offset_inc *= pointers_per_block;
+                    if (inodes[j].i_block[14] != 0)
+                        scan_ind_block(j, 2, offset, inodes[j].i_block[14], offset_inc);
+                }
             }
         }
     }
