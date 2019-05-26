@@ -141,13 +141,13 @@ int main(int argc, char** argv) {
             exit(1);
         }
         int j = 0;
-        for(; j < num_inodes; i++)
+        for(; j < num_inodes; j++)
         {
             int inode_number = j+1;
             char file_type = '?';
             if(inodes[j].i_mode && inodes[j].i_links_count)
             {
-                if((inodes[j].i_mode & 0x8000) != 0)
+                if((inodes[j].i_mode & 0x8000) == 0)
                 {
                     if(inodes[j].i_mode & 0x4000)
                         file_type = 'd';
@@ -165,11 +165,11 @@ int main(int argc, char** argv) {
                 time_t l = inodes[j].i_ctime;
                 time_t m = inodes[j].i_mtime;
                 time_t a = inodes[j].i_atime;
-                strftime(last_change, 50, "%d %t", gmtime(&l));
-                strftime(mod, 50, "%d %t", gmtime(&m));
-                strftime(acc, 50, "%d %t", gmtime(&a));
+                strftime(last_change, 50, "%m/%d/%y %H:%M:%S", gmtime(&l));
+                strftime(mod, 50, "%m/%d/%y %H:%M:%S", gmtime(&m));
+                strftime(acc, 50, "%m/%d/%y %H:%M:%S", gmtime(&a));
                 
-                dprintf(1, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", inode_number, file_type, inodes[j].i_mode & 0x0FFF, inodes[j].i_uid, inodes[j].i_gid, inodes[j].i_links_count, last_change, mod, acc, inodes[j].i_size, inodes[j].i_blocks);
+                dprintf(1, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d\n", inode_number, file_type, inodes[j].i_mode & 0x0FFF, inodes[j].i_uid, inodes[j].i_gid, inodes[j].i_links_count, last_change, mod, acc, inodes[j].i_size, inodes[j].i_blocks);
             
                 if (file_type == 'd') {
                     for (unsigned int k = 0; k < 12; k++) {
