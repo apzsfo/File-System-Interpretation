@@ -183,6 +183,53 @@ int main(int argc, char** argv) {
             }
         }
     }
+    //i-node summary
+    int inodes_per_group = superBuffer.s_inodes_per_group;
+    int inode_size = superBuffer.s_inode_size;
+    int inode_buffer_size = inodes_per_group * inode_size;
+    struct ext2_inode inodes[inodes_per_group];
+    int i = 0;
+    for(; i < group_count; i++)
+    {
+        ssize_t i_read = pread(img_fd, inodes, inode_buffer_size, groups[i].bg_inode_table*block_size);
+        if(i_read < 0)
+        {
+            fprintf(stderr, "inode read error\n");
+            exit(1);
+        }
+        int j = 0;
+        for(; j < inode_size; i++)
+        {
+            int inode_number = j+1;
+            char file_type = '?';
+            if(inodes[j].i_mode && inodes[j].i_links_count)
+            {
+                if((inodes[j].i_mode & 0x8000) != 0)
+                {
+                    if(inodes[j].i_mode & 0x4000)
+                        file_type = 'd';
+                }
+                else
+                {
+                    if(inodes[j].i_mode & 0x2000)
+                        file_type = 's';
+                    else
+                        file_type = 'f';
+                }
+                char last_change[50];
+                char mod[50];
+                char acc[50];
+                time_t l = inodes[j].i_ctime;
+                time_t m = inodes[j].i_mtime;
+                time_t a = inodes[j].i_atime;
+                strftime(last_change, 50, "%d %t", gmtime(&l));
+                strftime(mod, 50, "%d %t", gmtime(&m));
+                strftime(acc, 50, "%d %t", gmtime(&a));
+                
+                dprintf(1, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", inode_number, file_type, inodes[j].i_mode & 0x0FFF, inodes[j].i_uid, inodes[j].i_gid, inodes[j].i_links_count, last_change, mod, acc, inodes[j].i_size, inodes[j].i_blocks);
+            }
+        }
+    }
     
     return 0;
 }
