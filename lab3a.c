@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
                 strftime(mod, 50, "%m/%d/%y %H:%M:%S", gmtime(&m));
                 strftime(acc, 50, "%m/%d/%y %H:%M:%S", gmtime(&a));
                 
-                dprintf(1, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d\n", inode_number, file_type, inodes[j].i_mode & 0x0FFF, inodes[j].i_uid, inodes[j].i_gid, inodes[j].i_links_count, last_change, mod, acc, inodes[j].i_size, inodes[j].i_blocks);
+                dprintf(1, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d,", inode_number, file_type, inodes[j].i_mode & 0x0FFF, inodes[j].i_uid, inodes[j].i_gid, inodes[j].i_links_count, last_change, mod, acc, inodes[j].i_size, inodes[j].i_blocks);
                 dprintf(1, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", inodes[j].i_block[0],inodes[j].i_block[1],inodes[j].i_block[2], inodes[j].i_block[3], inodes[j].i_block[4], inodes[j].i_block[5], inodes[j].i_block[6], inodes[j].i_block[7], inodes[j].i_block[8], inodes[j].i_block[9], inodes[j].i_block[10], inodes[j].i_block[11], inodes[j].i_block[12], inodes[j].i_block[13], inodes[j].i_block[14]);
                 if (file_type == 'd') { //directory entries
                     for (unsigned int k = 0; k < 12; k++) {
