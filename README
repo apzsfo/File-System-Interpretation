@@ -1,4 +1,13 @@
 NAME: Ryan Nemiroff, Andy Zeff
-EMAIL: ryguyn@gmail.com
-ID: 304903942
+EMAIL: ryguyn@gmail.com, apzsfo@g.ucla.edu
+ID: 304903942, 804994987
+
+lab3a.c
+	C source module examining file systems.
+
+Makefile
+	a file to build and run the deliverable program, featuring default, dist, and clean.
+
+README
+	This file, which describes the contents of the other files.
 

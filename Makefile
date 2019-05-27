@@ -1,6 +1,6 @@
-# NAME: Ryan Nemiroff, Andy Zeff
-# EMAIL: ryguyn@gmail.com
-# ID: 304903942
+# NAME: Ryan Nemiroff, Andrew Zeff
+# EMAIL: ryguyn@gmail.com, apzsfo@g.ucla.edu
+# ID: 304903942, 804994987
 
 lab3a:
 	gcc lab3a.c -o lab3a -Wall -Wextra

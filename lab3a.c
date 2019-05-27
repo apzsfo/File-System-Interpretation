@@ -1,3 +1,7 @@
+//NAME: Ryan Nemiroff, Andrew Zeff
+//EMAIL: ryguyn@gmail.com, apzsfo@g.ucla.edu
+//ID: 304903942, 804994987
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,7 +17,7 @@
 
 #include "ext2_fs.h"
 
-void err_msg_and_exit_1(char* format, ...) {
+void err_msg_and_exit_1(char* format, ...) { //error warning function
     va_list argp;
     va_start(argp, format);
     vfprintf(stderr, format, argp);
@@ -25,12 +29,17 @@ int img_fd = -1;
 unsigned int pointers_per_block = 0;
 unsigned int block_size = 0;
 
-void scan_ind_block(unsigned int inode_num, int level, unsigned int offset, unsigned int block_num, unsigned int offset_inc) {
+void scan_ind_block(unsigned int inode_num, int level, unsigned int offset, unsigned int block_num, unsigned int offset_inc) { //scan independent blocks
     if (level == 0) {
         return;
     }
     unsigned int block_ptrs[pointers_per_block];
-    pread(img_fd, block_ptrs, block_size, block_num * block_size);
+    int scan = pread(img_fd, block_ptrs, block_size, block_num * block_size);
+    if(scan < 0)
+    {
+        fprintf(stderr, "pread error\n");
+        exit(2);
+    }
     level--;
     offset_inc /= pointers_per_block;
     for (unsigned int i = 0; i < pointers_per_block; i++) {
@@ -50,18 +59,23 @@ void scan_ind_block(unsigned int inode_num, int level, unsigned int offset, unsi
 }
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
+    if (argc != 2) { //check for correct number of arguments
         fprintf(stderr, "Requires exactly 1 argument\n");
         exit(1);
     }
     
-    img_fd = open(argv[1], O_RDONLY);
+    img_fd = open(argv[1], O_RDONLY); //check for correct image file opening
     if (img_fd == -1) {
         err_msg_and_exit_1("Error opening file system image");
     }
     
     struct ext2_super_block super_block;
-    pread(img_fd, &super_block, sizeof(struct ext2_super_block), 1024); //superblock summaries
+    int first_read = pread(img_fd, &super_block, sizeof(struct ext2_super_block), 1024); //superblock summaries
+    if(first_read < 0)
+    {
+        fprintf(stderr, "pread error\n");
+        exit(2);
+    }
     block_size = 1024 << super_block.s_log_block_size;
     printf(
            "SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n",
@@ -74,12 +88,12 @@ int main(int argc, char** argv) {
            super_block.s_first_ino
     );
     
-    int inodes_per_group = super_block.s_inodes_per_group;
+    int inodes_per_group = super_block.s_inodes_per_group; //group summaries
     int inode_size = super_block.s_inode_size;
     int inode_buffer_size = inodes_per_group * inode_size;
     pointers_per_block = block_size / sizeof(unsigned int);
     
-    int groups_with_full_blocks = super_block.s_blocks_count / super_block.s_blocks_per_group;
+    int groups_with_full_blocks = super_block.s_blocks_count / super_block.s_blocks_per_group; //all the inputs of the CSV
     int groups_with_full_inodes = super_block.s_inodes_count / super_block.s_inodes_per_group;
     int leftover_blocks = super_block.s_blocks_count % super_block.s_blocks_per_group;
     int leftover_inodes = super_block.s_inodes_count % super_block.s_inodes_per_group;
@@ -91,6 +105,7 @@ int main(int argc, char** argv) {
     if(g_read == 0)
     {
         fprintf(stderr, "pread error\n");
+        exit(2);
     }
     
     unsigned int num_blocks = super_block.s_blocks_per_group;
@@ -115,7 +130,12 @@ int main(int argc, char** argv) {
         // free block/inode summaries:
         unsigned int block_bitmap_bytes = (num_blocks-1)/8 + 1;
         unsigned char block_bitmap[block_bitmap_bytes];
-        pread(img_fd, block_bitmap, block_bitmap_bytes, groups[i].bg_block_bitmap * block_size);
+        int f_read = pread(img_fd, block_bitmap, block_bitmap_bytes, groups[i].bg_block_bitmap * block_size);
+        if(f_read < 0)
+        {
+            fprintf(stderr, "pread error\n");
+            exit(2);
+        }
         for (unsigned int j = 0; j < num_blocks; j++) {
             if ((block_bitmap[j/8] & (1<<(j%8))) == 0) {
                 printf("BFREE,%d\n", i*super_block.s_blocks_per_group + j + 1);
@@ -124,7 +144,12 @@ int main(int argc, char** argv) {
         
         unsigned int inode_bitmap_bytes = (num_inodes-1)/8 + 1;
         unsigned char inode_bitmap[inode_bitmap_bytes];
-        pread(img_fd, inode_bitmap, inode_bitmap_bytes, groups[i].bg_inode_bitmap * block_size);
+        int ft_read = pread(img_fd, inode_bitmap, inode_bitmap_bytes, groups[i].bg_inode_bitmap * block_size);
+        if(ft_read < 0)
+        {
+            fprintf(stderr, "pread error\n");
+            exit(2);
+        }
         for (unsigned int j = 0; j < num_inodes; j++) {
             if ((inode_bitmap[j/8] & (1<<(j%8))) == 0) {
                 printf("IFREE,%d\n", i*super_block.s_inodes_per_group + j + 1);
@@ -137,7 +162,7 @@ int main(int argc, char** argv) {
         if(i_read < 0)
         {
             fprintf(stderr, "inode read error\n");
-            exit(1);
+            exit(2);
         }
         unsigned int j = 0;
         for(; j < num_inodes; j++)
@@ -169,8 +194,8 @@ int main(int argc, char** argv) {
                 strftime(acc, 50, "%m/%d/%y %H:%M:%S", gmtime(&a));
                 
                 dprintf(1, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d\n", inode_number, file_type, inodes[j].i_mode & 0x0FFF, inodes[j].i_uid, inodes[j].i_gid, inodes[j].i_links_count, last_change, mod, acc, inodes[j].i_size, inodes[j].i_blocks);
-            
-                if (file_type == 'd') {
+                dprintf(1, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", inodes[j].i_block[0],inodes[j].i_block[1],inodes[j].i_block[2], inodes[j].i_block[3], inodes[j].i_block[4], inodes[j].i_block[5], inodes[j].i_block[6], inodes[j].i_block[7], inodes[j].i_block[8], inodes[j].i_block[9], inodes[j].i_block[10], inodes[j].i_block[11], inodes[j].i_block[12], inodes[j].i_block[13], inodes[j].i_block[14]);
+                if (file_type == 'd') { //directory entries
                     for (unsigned int k = 0; k < 12; k++) {
                         if (inodes[j].i_block[k] == 0) {
                             continue;
@@ -178,7 +203,12 @@ int main(int argc, char** argv) {
                         unsigned int dirent_loc = inodes[j].i_block[k] * block_size;
                         struct ext2_dir_entry dir_entry;
                         for (__uint32_t dirent_byte_offset = 0; dirent_byte_offset < block_size; dirent_byte_offset += dir_entry.rec_len) {
-                            pread(img_fd, &dir_entry, sizeof(struct ext2_dir_entry), dirent_loc + dirent_byte_offset);
+                            int diread = pread(img_fd, &dir_entry, sizeof(struct ext2_dir_entry), dirent_loc + dirent_byte_offset);
+                            if(diread < 0)
+                            {
+                                fprintf(stderr, "pread error\n");
+                                exit(2);
+                            }
                             if (dir_entry.inode == 0) {
                                 continue;
                             }
@@ -199,7 +229,7 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
-                
+                //indirect block entries
                 if (file_type == 'f' || file_type == 'd') {
                     unsigned int offset = 12;
                     unsigned int offset_inc = pointers_per_block;
