@@ -1,7 +1,3 @@
-//NAME: Ryan Nemiroff, Andrew Zeff
-//EMAIL: ryguyn@gmail.com, apzsfo@g.ucla.edu
-//ID: 304903942, 804994987
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdio.h>
